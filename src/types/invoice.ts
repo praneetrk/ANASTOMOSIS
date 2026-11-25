@@ -14,6 +14,13 @@ export interface InvoiceData {
   PO_No?: string;
   Vehicle_No?: string;
   Location?: string;
+
+  // Company Header Details (Emergency Editable)
+  Company_Name?: string;
+  Company_Address?: string;
+  Company_GSTIN?: string;
+
+  // Buyer & Consignee Details
   Buyer_Name?: string;
   Buyer_Address?: string;
   Shipped_To_Name?: string;
@@ -21,6 +28,12 @@ export interface InvoiceData {
   Buyer_GSTIN?: string;
   Buyer_PAN?: string;
   Vendor_Code?: string;
+
+  // Footer & Signatory Details (Emergency Editable)
+  Terms_Conditions?: string;
+  Signatory_Company_Text?: string;
+  Signatory_Label?: string;
+
   items: InvoiceItem[];
 }
 

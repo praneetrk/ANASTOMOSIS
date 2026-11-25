@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   UploadCloud,
   FileCheck2,
@@ -25,6 +25,12 @@ import {
   Layers,
   Check,
   Search,
+  Bookmark,
+  Save,
+  Trash2,
+  FolderOpen,
+  X,
+  FileCheck,
 } from "lucide-react";
 import { InvoiceData } from "@/types/invoice";
 import { TaxInvoiceData } from "@/types/taxInvoice";
@@ -35,6 +41,12 @@ import {
   generateDynamicExcelTemplate,
   mergeTemplateWithExcel,
 } from "@/lib/templateExcelMerger";
+import {
+  SavedTemplate,
+  getSavedTemplates,
+  saveCustomTemplate,
+  deleteCustomTemplate,
+} from "@/lib/templateStorage";
 import InvoicePreviewModal from "./InvoicePreviewModal";
 import TaxInvoicePreviewModal from "./TaxInvoicePreviewModal";
 
@@ -60,6 +72,18 @@ export default function MasterTemplateBatchView({
   const [fieldConfigs, setFieldConfigs] = useState<Record<string, FieldConfig>>(() =>
     getDefaultFieldConfigs(null, docType)
   );
+
+  // Template Storage State
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState("");
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const list = getSavedTemplates(docType);
+    setSavedTemplates(list);
+  }, [docType]);
 
   // Excel Upload & Merged Invoices State
   const [excelFileName, setExcelFileName] = useState<string | null>(null);
@@ -115,9 +139,54 @@ export default function MasterTemplateBatchView({
 
   const handleUseStandardTemplate = () => {
     setPdfFileName("Standard_Default_Template.pdf");
+    setSelectedTemplateId("");
     const initialConfigs = getDefaultFieldConfigs(null, docType);
     setFieldConfigs(initialConfigs);
     setCurrentStep(2);
+  };
+
+  const handleSelectTemplate = (templateId: string) => {
+    if (!templateId) return;
+    const found = savedTemplates.find((t) => t.id === templateId);
+    if (!found) return;
+
+    setSelectedTemplateId(templateId);
+    setFieldConfigs(found.configs);
+    setPdfFileName(`Template: ${found.name}`);
+    setCurrentStep(2);
+  };
+
+  const handleOpenSaveModal = () => {
+    const rawParty = fieldConfigs.Buyer_Name?.value || "Client";
+    const party = rawParty.replace(/^M\/S\.\s*/i, "").trim().slice(0, 24);
+    const loc = fieldConfigs.Location?.value || "Site";
+    setTemplateNameInput(`${party} (${loc})`);
+    setIsSaveModalOpen(true);
+  };
+
+  const handleConfirmSaveTemplate = () => {
+    if (!templateNameInput.trim()) return;
+    const saved = saveCustomTemplate({
+      name: templateNameInput.trim(),
+      docType,
+      configs: fieldConfigs,
+    });
+    const updatedList = getSavedTemplates(docType);
+    setSavedTemplates(updatedList);
+    setSelectedTemplateId(saved.id);
+    setIsSaveModalOpen(false);
+    setSaveSuccessMsg(`Template "${saved.name}" saved successfully!`);
+    setTimeout(() => setSaveSuccessMsg(null), 3500);
+  };
+
+  const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this custom saved template?")) {
+      deleteCustomTemplate(id);
+      const updatedList = getSavedTemplates(docType);
+      setSavedTemplates(updatedList);
+      if (selectedTemplateId === id) setSelectedTemplateId("");
+    }
   };
 
   // --- Step 2: Toggle Constant vs Excel ---
@@ -274,12 +343,14 @@ export default function MasterTemplateBatchView({
   }, 0);
 
   // Group config fields by category for clean UI rendering
+  const companyFields = Object.values(fieldConfigs).filter((c) => c.category === "company");
   const receiverFields = Object.values(fieldConfigs).filter((c) => c.category === "receiver");
   const headerFields = Object.values(fieldConfigs).filter((c) => c.category === "header");
   const transportFields = Object.values(fieldConfigs).filter((c) => c.category === "transport");
   const itemFields = Object.values(fieldConfigs).filter(
     (c) => c.category === "item" || c.category === "tax"
   );
+  const footerFields = Object.values(fieldConfigs).filter((c) => c.category === "footer");
   const dynamicCols = Object.values(fieldConfigs).filter((c) => !c.isConstant);
 
   return (
@@ -412,18 +483,55 @@ export default function MasterTemplateBatchView({
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              Don&apos;t have a PDF ready?
-            </span>
-            <button
-              type="button"
-              onClick={handleUseStandardTemplate}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-              <span>Use Standard Default Template</span>
-            </button>
+          {/* Preset / Saved Templates Option */}
+          <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <Bookmark className="w-3.5 h-3.5 text-blue-600" />
+                <span>Or Select from Saved Templates & Plant Presets:</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleUseStandardTemplate}
+                className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Use blank standard template
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {savedTemplates.map((t) => {
+                const isCustom = t.id.startsWith("custom_");
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => handleSelectTemplate(t.id)}
+                    className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-400 text-left transition-all group flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate">
+                          {t.name}
+                        </span>
+                        {isCustom && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 font-semibold shrink-0">
+                            Custom
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">
+                        {t.configs.Buyer_Address?.value || "Standard Configuration"}
+                      </p>
+                    </div>
+                    <div className="mt-2 text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      <span>Use this template</span>
+                      <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -466,17 +574,69 @@ export default function MasterTemplateBatchView({
             </div>
           </div>
 
+          {/* Template Actions & Switcher Toolbar */}
+          <div className="p-3.5 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 flex-wrap">
+              <FolderOpen className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <label htmlFor="template-select" className="text-xs font-bold text-zinc-700 dark:text-zinc-300 shrink-0">
+                Active Template:
+              </label>
+              <select
+                id="template-select"
+                value={selectedTemplateId}
+                onChange={(e) => handleSelectTemplate(e.target.value)}
+                className="text-xs rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-sm truncate"
+              >
+                <option value="">-- Active Custom Session --</option>
+                {savedTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.id.startsWith("custom_") ? "★ " : "● "} {t.name}
+                  </option>
+                ))}
+              </select>
+
+              {selectedTemplateId && selectedTemplateId.startsWith("custom_") && (
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteTemplate(selectedTemplateId, e)}
+                  className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                  title="Delete this custom template"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenSaveModal}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save as Template</span>
+              </button>
+            </div>
+          </div>
+
+          {saveSuccessMsg && (
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+              <span>{saveSuccessMsg}</span>
+            </div>
+          )}
+
           {/* Quick Notice */}
           <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                <strong>Tip:</strong> You can edit any address or GST text below once right now. The edited text will be locked as constant for all subsequent challans!
+                <strong>Tip:</strong> You can edit any address, terms, or GST text below once right now. The edited text will be locked as constant for all subsequent documents!
               </span>
             </div>
             <button
               type="button"
-              onClick={handleDownloadDynamicTemplate}
+              onClick={() => handleDownloadDynamicTemplate(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-zinc-800 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-xs hover:bg-amber-100 dark:hover:bg-zinc-700 shrink-0 transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
@@ -486,6 +646,72 @@ export default function MasterTemplateBatchView({
 
           {/* Block Categories */}
           <div className="space-y-6">
+            {/* Category 0: Issuer Header (Emergency Override) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                <Building2 className="w-4 h-4 text-purple-600" />
+                <span>Company Header (Anastomosis Details)</span>
+                <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                  Header Override
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {companyFields.map((field) => (
+                  <div
+                    key={field.key}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      field.key === "Company_Address" ? "md:col-span-2" : ""
+                    } ${
+                      field.isConstant
+                        ? "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800"
+                        : "bg-blue-50/40 dark:bg-blue-950/20 border-blue-300/80 dark:border-blue-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">
+                        {field.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleFieldConstant(field.key)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-xs shrink-0 ${
+                          field.isConstant
+                            ? "bg-emerald-600 text-white"
+                            : "bg-blue-600 text-white"
+                        }`}
+                      >
+                        {field.isConstant ? (
+                          <>
+                            <Lock className="w-3 h-3" />
+                            <span>CONSTANT</span>
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="w-3 h-3" />
+                            <span>FROM EXCEL</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {field.key === "Company_Address" ? (
+                      <textarea
+                        rows={2}
+                        value={field.value}
+                        onChange={(e) => handleFieldValueChange(field.key, e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={field.value}
+                        onChange={(e) => handleFieldValueChange(field.key, e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
             {/* Category 1: Receiver & Address Info */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
@@ -706,6 +932,73 @@ export default function MasterTemplateBatchView({
                 ))}
               </div>
             </div>
+
+            {/* Category 5: Footer Terms & Signatory (Emergency Override) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                <FileCheck className="w-4 h-4 text-amber-600" />
+                <span>Terms & Signatory (Footer Override)</span>
+                <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                  Footer Override
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {footerFields.map((field) => (
+                  <div
+                    key={field.key}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      field.key === "Terms_Conditions" ? "md:col-span-2" : ""
+                    } ${
+                      field.isConstant
+                        ? "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800"
+                        : "bg-blue-50/40 dark:bg-blue-950/20 border-blue-300/80 dark:border-blue-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">
+                        {field.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleFieldConstant(field.key)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-xs shrink-0 ${
+                          field.isConstant
+                            ? "bg-emerald-600 text-white"
+                            : "bg-blue-600 text-white"
+                        }`}
+                      >
+                        {field.isConstant ? (
+                          <>
+                            <Lock className="w-3 h-3" />
+                            <span>CONSTANT</span>
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="w-3 h-3" />
+                            <span>FROM EXCEL</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {field.key === "Terms_Conditions" ? (
+                      <textarea
+                        rows={3}
+                        value={field.value}
+                        onChange={(e) => handleFieldValueChange(field.key, e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={field.value}
+                        onChange={(e) => handleFieldValueChange(field.key, e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Required Columns Preview & Bottom Actions */}
@@ -730,7 +1023,7 @@ export default function MasterTemplateBatchView({
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={handleDownloadDynamicTemplate}
+                  onClick={() => handleDownloadDynamicTemplate(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors shadow-xs"
                 >
                   <Download className="w-3.5 h-3.5 text-emerald-600" />
@@ -857,7 +1150,7 @@ export default function MasterTemplateBatchView({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleDownloadDynamicTemplate}
+                onClick={() => handleDownloadDynamicTemplate(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors"
               >
                 <Download className="w-3.5 h-3.5 text-blue-500" />
@@ -1032,25 +1325,85 @@ export default function MasterTemplateBatchView({
       {/* Delivery Challan Preview / Edit Modal */}
       {selectedChallan && (
         <InvoicePreviewModal
-          isOpen={!!selectedChallan}
-          mode={modalMode}
+          initialMode={modalMode}
           invoice={selectedChallan}
           onClose={() => setSelectedChallan(null)}
           onSave={handleSaveEditedChallan}
-          onDownloadPdf={(inv, openInNewTab) => onDownloadPdf(inv, openInNewTab)}
+          onDownload={(inv: InvoiceData, openInNewTab?: boolean) => onDownloadPdf(inv, openInNewTab)}
         />
       )}
 
       {/* Tax Invoice Preview / Edit Modal */}
       {selectedInvoice && (
         <TaxInvoicePreviewModal
-          isOpen={!!selectedInvoice}
-          mode={modalMode}
+          initialMode={modalMode}
           invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
           onSave={handleSaveEditedInvoice}
-          onDownloadPdf={(inv, openInNewTab) => onDownloadPdf(inv, openInNewTab)}
+          onDownload={(inv: TaxInvoiceData, openInNewTab?: boolean) => onDownloadPdf(inv, openInNewTab)}
         />
+      )}
+
+      {/* Save Template Modal */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                <Bookmark className="w-4 h-4 text-blue-600" />
+                <span>Save Configuration as Template</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsSaveModalOpen(false)}
+                className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              Save current party address, terms, company header, and constant locks under a memorable name. You can reload it anytime with one click!
+            </p>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                Template Name
+              </label>
+              <input
+                type="text"
+                value={templateNameInput}
+                onChange={(e) => setTemplateNameInput(e.target.value)}
+                placeholder="e.g. Reliance Survey 641 Navsari"
+                className="w-full text-xs p-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              />
+            </div>
+
+            <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 text-[11px] text-zinc-600 dark:text-zinc-300 space-y-1">
+              <div><strong>Party:</strong> {fieldConfigs.Buyer_Name?.value || "N/A"}</div>
+              <div className="truncate"><strong>Address:</strong> {fieldConfigs.Buyer_Address?.value || "N/A"}</div>
+              <div><strong>Site:</strong> {fieldConfigs.Location?.value || "N/A"}</div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsSaveModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!templateNameInput.trim()}
+                onClick={handleConfirmSaveTemplate}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+              >
+                Save Template
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

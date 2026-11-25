@@ -50,6 +50,7 @@ export interface TaxInvoiceData {
   IGST_Rate?: number | string;
   IGST_Amount?: number | string;
   Round_Off?: number | string;
+  Total_Tax_Amount?: number | string;
   Total_Amount_After_Tax?: number | string;
   Amount_In_Words?: string;
   Note?: string;
@@ -62,5 +63,15 @@ export interface TaxInvoiceData {
   Branch_Name?: string;
   Account_No?: string;
   IFSC_Code?: string;
+
+  // Header Details (Emergency Editable)
+  Company_Name?: string;
+  Company_Address?: string;
+  Company_GSTIN?: string;
+
+  // Footer Details (Emergency Editable)
+  Terms_Conditions?: string;
+  Signatory_Company_Text?: string;
+  Signatory_Label?: string;
 }
 

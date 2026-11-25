@@ -214,10 +214,16 @@ export default function InvoicePreviewModal({
       PO_No: editData.PO_No?.trim() || "",
       Vehicle_No: editData.Vehicle_No?.trim() || "",
       Location: editData.Location?.trim() || "NAVSARI CBG",
+
+      // Company Header (Emergency Override)
+      Company_Name: editData.Company_Name?.trim() || "ANASTOMOSIS ENTERPRISE LLP",
+      Company_Address:
+        editData.Company_Address?.trim() ||
+        "A-715, KRISH ELITE, S P RING ROAD, NIKOL, Ahmedabad-380049, Gujarat- India",
+      Company_GSTIN: editData.Company_GSTIN?.trim() || "24ABWFA7922J1ZY",
+
       Buyer_Name: editData.Buyer_Name?.trim() || "M/S. Reliance Industries Limited",
-      Buyer_Address:
-        editData.Buyer_Address?.trim() ||
-        "Block No. 601, VILLAGE : KHADSUPA TALUKA : NAVSARI, NAVSARI, GUJARAT-396433",
+      Buyer_Address: editData.Buyer_Address?.trim() || "",
       Shipped_To_Name:
         editData.Shipped_To_Name?.trim() ||
         editData.Buyer_Name?.trim() ||
@@ -225,10 +231,15 @@ export default function InvoicePreviewModal({
       Shipped_To_Address:
         editData.Shipped_To_Address?.trim() ||
         editData.Buyer_Address?.trim() ||
-        "Block No. 601, VILLAGE : KHADSUPA TALUKA : NAVSARI, NAVSARI, GUJARAT-396433",
+        "",
       Buyer_GSTIN: editData.Buyer_GSTIN?.trim() || "24AAACR5055K1ZD",
       Buyer_PAN: editData.Buyer_PAN?.trim() || "AAACR5055K",
       Vendor_Code: editData.Vendor_Code?.trim() || "3778226",
+
+      // Footer & Signatory (Emergency Override)
+      Terms_Conditions: editData.Terms_Conditions,
+      Signatory_Company_Text: editData.Signatory_Company_Text?.trim() || "FOR ANASTOMOSIS ENTERPRISE LLP",
+      Signatory_Label: editData.Signatory_Label?.trim() || "Authorised Signature",
       items: editData.items.map((it) => {
         const hsn = (it.HSN_Code || "").trim();
         return {
@@ -466,6 +477,60 @@ export default function InvoicePreviewModal({
           ) : (
             /* Edit Form Interface */
             <div className="max-w-4xl mx-auto space-y-6">
+              {/* Card 0: Company Header (Emergency Override) */}
+              <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/60 p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-900/40 pb-3">
+                  <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>Company Header (Emergency Override)</span>
+                  </h4>
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-mono">
+                    Issuer Branding
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      Issuer Company Name
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.Company_Name || ""}
+                      onChange={(e) => handleHeaderChange("Company_Name", e.target.value)}
+                      placeholder="ANASTOMOSIS ENTERPRISE LLP"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      Issuer GSTIN
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.Company_GSTIN || ""}
+                      onChange={(e) => handleHeaderChange("Company_GSTIN", e.target.value)}
+                      placeholder="24ABWFA7922J1ZY"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 font-mono"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 md:col-span-3">
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      Issuer Office Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editData.Company_Address || ""}
+                      onChange={(e) => handleHeaderChange("Company_Address", e.target.value)}
+                      placeholder="A-715, KRISH ELITE, S P RING ROAD, NIKOL, Ahmedabad-380049, Gujarat- India"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 resize-none font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Card 1: Header / Dispatch Details */}
               <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
@@ -843,6 +908,60 @@ export default function InvoicePreviewModal({
                     <Plus className="w-4 h-4" />
                     <span>Add Another Item Row</span>
                   </button>
+                </div>
+              </div>
+
+              {/* Card 4: Terms & Signatory (Emergency Override) */}
+              <div className="bg-amber-50/50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/60 p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-900/40 pb-3">
+                  <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>Terms & Signatory (Emergency Override)</span>
+                  </h4>
+                  <span className="text-xs text-amber-700 dark:text-amber-400 font-mono">
+                    Footer Branding
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      Terms & Conditions (Printed in Left Footer Column)
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={editData.Terms_Conditions || ""}
+                      onChange={(e) => handleHeaderChange("Terms_Conditions", e.target.value)}
+                      placeholder={`1. Scope of customer Goods unloading.\n2. Goods once sold will not be taken back.\n3. Our responsibility ceases on delivery...`}
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      Signatory Header (Above Signature)
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.Signatory_Company_Text || ""}
+                      onChange={(e) => handleHeaderChange("Signatory_Company_Text", e.target.value)}
+                      placeholder="FOR ANASTOMOSIS ENTERPRISE LLP"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                      Signatory Label (Below Signature)
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.Signatory_Label || ""}
+                      onChange={(e) => handleHeaderChange("Signatory_Label", e.target.value)}
+                      placeholder="Authorised Signature"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-amber-500 font-medium"
+                    />
+                  </div>
                 </div>
               </div>
 

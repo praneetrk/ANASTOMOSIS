@@ -18,6 +18,20 @@ function cleanStr(val: unknown): string {
 }
 
 export function generateDeliveryChallanHtml(invoice: InvoiceData): string {
+  const companyName = cleanStr(invoice.Company_Name || "ANASTOMOSIS ENTERPRISE LLP");
+  const companyAddress = cleanStr(
+    invoice.Company_Address ||
+      "A-715, KRISH ELITE, S P RING ROAD, NIKOL, Ahmedabad-380049, Gujarat- India"
+  );
+  const companyGstin = cleanStr(invoice.Company_GSTIN || "24ABWFA7922J1ZY");
+
+  const termsConditions = invoice.Terms_Conditions || `1. Scope of customer Goods unloading.
+2. Goods once sold will not be taken back.
+3. Our responsibility ceases on delivery to the customers or to the carriers. Claims for shortage or damage reported there after cannot be entertained.
+4. All disputes are subject to Ahmedabad Jurisdiction only.`;
+  const signatoryCompanyText = cleanStr(invoice.Signatory_Company_Text || "FOR ANASTOMOSIS ENTERPRISE LLP");
+  const signatoryLabel = cleanStr(invoice.Signatory_Label || "Authorised Signature");
+
   const invoiceNo = cleanStr(invoice.Invoice_No);
   const invoiceDate = formatDateIndian(cleanStr(invoice.Invoice_Date));
   const dcNo = cleanStr(invoice.DC_No || invoice.Invoice_No);
@@ -324,9 +338,9 @@ export function generateDeliveryChallanHtml(invoice: InvoiceData): string {
     <div class="doc-title">Delivery Challan</div>
 
     <!-- Company Branding -->
-    <div class="company-name">ANASTOMOSIS ENTERPRISE LLP</div>
-    <div class="company-address">Shop no 8, nandipark shopping center, krishnanagr, Ahmedabad-382345. Gujarat- India</div>
-    <div class="company-gst">GST No.: 24ABWFA7922J1ZY</div>
+    <div class="company-name">${companyName}</div>
+    <div class="company-address">${companyAddress}</div>
+    <div class="company-gst">GST No.: ${companyGstin}</div>
 
     <!-- Receiver Header -->
     <div class="receiver-header">Details of Receiver(Billed to):</div>
@@ -464,17 +478,14 @@ export function generateDeliveryChallanHtml(invoice: InvoiceData): string {
     <div class="footer-grid">
       <div class="terms-col">
         <div class="font-bold" style="margin-bottom: 2px;">Terms & Condition :</div>
-        <div>1. Scope of customer Goods unloading.</div>
-        <div>2. Goods once sold will not be taken back.</div>
-        <div>3. Our responsibility ceases on delivery to the customers or to the carriers. Claims for shortage or damage reported there after cannot be entertained.</div>
-        <div>4. All disputes are subject to Ahmedabad Jurisdiction only.</div>
+        <div style="white-space: pre-line;">${escapeHtml(termsConditions)}</div>
       </div>
 
       <div class="signature-col">
-        <div class="sign-header">FOR ANASTOMOSIS ENTERPRISE LLP</div>
+        <div class="sign-header">${signatoryCompanyText}</div>
         <div class="sign-space"></div>
         <div class="authorised-signatory-label">
-          Authorised Signature
+          ${signatoryLabel}
         </div>
       </div>
     </div>

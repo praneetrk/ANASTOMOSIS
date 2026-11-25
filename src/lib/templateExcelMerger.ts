@@ -7,7 +7,7 @@ import { formatDateIndian } from "@/lib/dateUtils";
 export interface FieldConfig {
   key: string;
   label: string;
-  category: "header" | "receiver" | "transport" | "item" | "tax";
+  category: "company" | "header" | "receiver" | "transport" | "item" | "tax" | "footer";
   isConstant: boolean;
   value: string;
   description?: string;
@@ -24,13 +24,52 @@ export function getDefaultFieldConfigs(
     : "M/S. Reliance New Solar Energy Limited";
 
   const defaultBuyerAddress = isChallan
-    ? "Block No. 601, VILLAGE : KHADSUPA TALUKA : NAVSARI, NAVSARI, GUJARAT-396433"
+    ? "Survey No/Village: 641/A1, 641/A2, 641/B1, 641/B2 642 Part, 643, 644/A1, 644/A2, 644/B1, Navsari, Gujarat"
     : "Near Village Kana Chhikari, Navagam, Lalpur, District: Jamnagar - 361006";
 
   const defaultGstin = isChallan ? "24AAACR5055K1ZD" : "24AALCR0464R1ZT";
   const defaultPan = isChallan ? "AAACR5055K" : "AALCR0464R";
 
+  const defaultTerms = isChallan
+    ? `1. Scope of customer Goods unloading.
+2. Goods once sold will not be taken back.
+3. Our responsibility ceases on delivery to the customers or to the carriers. Claims for shortage or damage reported there after cannot be entertained.
+4. All disputes are subject to Ahmedabad Jurisdiction only.`
+    : `1. 50% advance payment along with Purchase order, balance before dispatch.
+2. Goods once sold will not be taken back.
+3. Our responsibility ceases on delivery to the customers or to the carriers. Claims for shortage or damage reported there after cannot be entertained.
+4. Payments should strictly be made through A/c Payee Cheque/Draft/NEFT or RTGS. Cash payments will be accepted only against stamped receipt issued by the Company.
+5. All disputes are subject to Ahmedabad Jurisdiction only.`;
+
   return {
+    // Company Header Details (Emergency Editable)
+    Company_Name: {
+      key: "Company_Name",
+      label: "Issuer Company Name",
+      category: "company",
+      isConstant: true,
+      value: template?.Company_Name || "ANASTOMOSIS ENTERPRISE LLP",
+      description: "Company name on top of the document",
+    },
+    Company_Address: {
+      key: "Company_Address",
+      label: "Issuer Office Address",
+      category: "company",
+      isConstant: true,
+      value:
+        template?.Company_Address ||
+        "A-715, KRISH ELITE, S P RING ROAD, NIKOL, Ahmedabad-380049, Gujarat- India",
+      description: "Registered office address of Anastomosis",
+    },
+    Company_GSTIN: {
+      key: "Company_GSTIN",
+      label: "Issuer GSTIN",
+      category: "company",
+      isConstant: true,
+      value: template?.Company_GSTIN || "24ABWFA7922J1ZY",
+      description: "GSTIN of Anastomosis Enterprise LLP",
+    },
+
     // Header & Order
     Invoice_No: {
       key: "Invoice_No",
@@ -193,6 +232,32 @@ export function getDefaultFieldConfigs(
       isConstant: true,
       value: String(template?.GST_Rate ?? (isChallan ? 0 : 5)),
       description: "Tax rate (0%, 5%, etc.)",
+    },
+
+    // Footer & Signatory (Emergency Editable)
+    Terms_Conditions: {
+      key: "Terms_Conditions",
+      label: "Terms & Conditions",
+      category: "footer",
+      isConstant: true,
+      value: template?.Terms_Conditions || defaultTerms,
+      description: "Legal terms printed on footer",
+    },
+    Signatory_Company_Text: {
+      key: "Signatory_Company_Text",
+      label: "Signatory Header",
+      category: "footer",
+      isConstant: true,
+      value: template?.Signatory_Company_Text || "FOR ANASTOMOSIS ENTERPRISE LLP",
+      description: "Text above signature space",
+    },
+    Signatory_Label: {
+      key: "Signatory_Label",
+      label: "Signatory Bottom Label",
+      category: "footer",
+      isConstant: true,
+      value: template?.Signatory_Label || "Authorised Signature",
+      description: "Text below signature space",
     },
   };
 }
@@ -383,6 +448,14 @@ export function mergeTemplateWithExcel(
       const gstRateStr = getVal("GST_Rate", ["gstrate", "taxrate", "gst"]) || "0";
       const gstRateNum = parseFloat(gstRateStr.replace(/[^0-9.]/g, "")) || 0;
 
+      const companyName = getVal("Company_Name", ["companyname", "issuername"]) || "ANASTOMOSIS ENTERPRISE LLP";
+      const companyAddress = getVal("Company_Address", ["companyaddress", "issueraddress"]) || "A-715, KRISH ELITE, S P RING ROAD, NIKOL, Ahmedabad-380049, Gujarat- India";
+      const companyGstin = getVal("Company_GSTIN", ["companygstin", "companygst", "issuergst"]) || "24ABWFA7922J1ZY";
+
+      const termsConditions = getVal("Terms_Conditions", ["terms", "termsconditions"]) || configs.Terms_Conditions?.value;
+      const signatoryCompanyText = getVal("Signatory_Company_Text", ["signatorycompany", "signcompany"]) || configs.Signatory_Company_Text?.value || "FOR ANASTOMOSIS ENTERPRISE LLP";
+      const signatoryLabel = getVal("Signatory_Label", ["signatorylabel", "signlabel"]) || configs.Signatory_Label?.value || "Authorised Signature";
+
       if (docType === "challan") {
         const item: InvoiceItem = {
           Item_Description: itemDesc,
@@ -400,6 +473,9 @@ export function mergeTemplateWithExcel(
           PO_No: poNo,
           Vehicle_No: vehicleNo,
           Location: location,
+          Company_Name: companyName,
+          Company_Address: companyAddress,
+          Company_GSTIN: companyGstin,
           Buyer_Name: buyerName,
           Buyer_Address: buyerAddress,
           Shipped_To_Name: shippedToName,
@@ -407,6 +483,9 @@ export function mergeTemplateWithExcel(
           Buyer_GSTIN: buyerGstin,
           Buyer_PAN: buyerPan,
           Vendor_Code: vendorCode,
+          Terms_Conditions: termsConditions,
+          Signatory_Company_Text: signatoryCompanyText,
+          Signatory_Label: signatoryLabel,
           items: [item],
         };
         challans.push(challanDoc);
@@ -442,6 +521,9 @@ export function mergeTemplateWithExcel(
           DC_Date: dcDate,
           PO_No: poNo,
           Vehicle_No: vehicleNo,
+          Company_Name: companyName,
+          Company_Address: companyAddress,
+          Company_GSTIN: companyGstin,
           Billed_To_Name: buyerName,
           Billed_To_Address: buyerAddress,
           Billed_To_State: "Gujarat, India",
@@ -454,6 +536,9 @@ export function mergeTemplateWithExcel(
           Buyer_PAN: buyerPan,
           Vendor_Code: vendorCode,
           Place_Of_Supply: location || "GUJARAT",
+          Terms_Conditions: termsConditions,
+          Signatory_Company_Text: signatoryCompanyText,
+          Signatory_Label: signatoryLabel,
           Total_Amount_Before_Tax: taxableAmount,
           CGST_Rate: isIntraState ? halfGstRate : "0%",
           CGST_Amount: isIntraState ? halfGstAmt : 0,
